@@ -13,10 +13,7 @@
 -- - proper disconnection of signals when the script is ran again or closed
 -- - fast
 
--- I use a linked list to store the game instances
--- This is to allow very quick operations
--- But it probably uses a lot of memory, not sure.
--- But it works! it's fast
+-- Linked list implementation to store currently visible in the GUI game instances
 type ExplorerNode = {
 	instance: Instance,
 
@@ -39,66 +36,53 @@ type ExplorerNode = {
 	parent: ExplorerNode?
 }
 
--- maps each instance to its proper ExplorerNode
-local instance_node: {[Instance]: ExplorerNode} = setmetatable({}, {__mode == "v"})
-
-local root_node: ExplorerNode = {
-	instance = workspace,
-	indentation = 0,
-	removed = false
+-- This just contains state about the current linked list
+-- Only made in case I later want to have two explorer views
+type ExplorerLinkedList = {
+	instances_map: {[Instance]: ExplorerNode} -- NOTE: instance_node should always be a table with weak values
 }
-instance_node[workspace] = root_node
 
-local ui_node: ExplorerNode = root_node
+local function new_node(state: ExplorerLinkedList, instance: Instance): ExplorerNode
+	local node: ExplorerNode = {
+		instance = instance,
+		indentation = 0,
+		removed = false
+	}
+	
+	state.instances_map[instance] = node
+	return node
+end
 
-do
-	local cur_node: ExplorerNode = root_node
+local function new_child_node(state: ExplorerLinkedList, instance: Instance, parent: ExplorerNode): ExplorerNode
+	local node: ExplorerNode = {
+		instance = instance,
+		indentation = parent.indentation + 1,
+		parent = parent,
+		back = parent.last_child,
+		removed = parent.removed
+	}
+	if parent.last_child then
+		parent.last_child.next = node
+	end
+	if not parent.child then
+		parent.child = node
+	end
+	parent.last_child = node
+	
+	state.instances_map[instance] = node	
+	return node
+end
 
-	for _, servicename in ipairs(
-		{"Players", "Lighting", "ReplicatedFirst", "ReplicatedStorage", "StarterGui", "StarterPack", "StarterPlayer", "Teams", "SoundService"}
-		)
-	do
-		local service = game:GetService(servicename)
-		cur_node.next = {
-			instance = service,
-			indentation = 0,
-			removed = false,
-			back = cur_node
-		}
-		instance_node[service] = cur_node.next
-
-		assert(cur_node.next)
-		cur_node = cur_node.next
+local function expand_node(state: ExplorerLinkedList, node: ExplorerNode)
+	-- TODO: this doesn't update when a new child is added or deleted
+	for _, child in ipairs(node.instance:GetChildren()) do
+		new_child_node(state, child, node)
 	end
 end
 
-local function expand_node(node: ExplorerNode)
-	-- TODO: this doesn't update when a new child is added or deleted
-	-- TODO: refactor. this is such a messy and hacky way I truly dislike
-	local old_next: ExplorerNode? = node.next
-	local cur_node = node
-	node.next = nil
-
-	for _, child in ipairs(node.instance:GetChildren()) do
-		cur_node.next = {
-			instance = child,
-			indentation = node.indentation + 1,
-			removed = node.removed,
-			back = cur_node,
-			parent = node,
-		}
-		instance_node[child] = cur_node.next
-		node.last_child = cur_node.next
-
-		assert(cur_node.next)
-		cur_node = cur_node.next
-	end
-	
-	node.child = node.next
-	if node.child then
-		node.child.back = nil
-	end
-	node.next = old_next
+local function contract_node(node: ExplorerNode)
+	node.child = nil
+	node.last_child = nil
 end
 
 local function get_next_node(node: ExplorerNode): ExplorerNode?
@@ -133,6 +117,33 @@ local function get_prev_node(node: ExplorerNode): ExplorerNode?
 	end
 
 	return nil
+end
+
+local state: ExplorerLinkedList = {
+	 instances_map = {}
+}
+setmetatable(state.instances_map, {__mode = "v"})
+
+local root_node: ExplorerNode = new_node(state, workspace)
+
+local ui_node: ExplorerNode = root_node
+
+do
+	local cur_node: ExplorerNode = root_node
+
+	for _, servicename in ipairs(
+		{"Players", "Lighting", "ReplicatedFirst", "ReplicatedStorage", "StarterGui", "StarterPack", "StarterPlayer", "Teams", "SoundService"}
+		)
+	do
+		local service = game:GetService(servicename)
+		local node = new_node(state, service)
+		node.back = cur_node
+
+		cur_node.next = node
+
+		assert(cur_node.next)
+		cur_node = cur_node.next
+	end
 end
 
 -- gui
@@ -361,9 +372,9 @@ for i = 1, amount_of_items do
 			if item.node then
 				-- toggle expand
 				if not item.node.child then
-					expand_node(item.node)
+					expand_node(state, item.node)
 				else
-					item.node.child = nil
+					contract_node(item.node)
 				end
 
 				update_explorer_ui()
@@ -402,8 +413,8 @@ local update_ui = false
 
 table.insert(connections,
 	game.DescendantRemoving:Connect(function(inst)
-		if instance_node[inst] then
-			instance_node[inst].removed = true
+		if state.instances_map[inst] then
+			state.instances_map[inst].removed = true
 			update_ui = true
 		end
 	end)
