@@ -19,6 +19,7 @@ type ExplorerNode = {
 
 	-- ui related
 	indentation: number,
+	expanded: boolean,
 
 	-- reference to the nodes
 	-- this will allow us to do many kind of operations quickly
@@ -37,7 +38,7 @@ local function new_node(instance: Instance): ExplorerNode
 	local node: ExplorerNode = {
 		instance = instance,
 		indentation = 0,
-		removed = false
+		expanded = false
 	}
 	
 	return node
@@ -47,6 +48,7 @@ local function new_child_node(instance: Instance, parent: ExplorerNode): Explore
 	local node: ExplorerNode = {
 		instance = instance,
 		indentation = parent.indentation + 1,
+		expanded = false,
 		parent = parent,
 		back = parent.last_child
 	}
@@ -67,7 +69,7 @@ local function contract_node(node: ExplorerNode)
 end
 
 local function get_next_node(node: ExplorerNode): ExplorerNode?
-	local ret = node.child or node.next
+	local ret = node.expanded and node.child or node.next
 	if ret then
 		return ret
 	end
@@ -86,7 +88,7 @@ end
 local function get_prev_node(node: ExplorerNode): ExplorerNode?
 	if node.back then
 		local cur_node: ExplorerNode = node.back
-		while cur_node.last_child do
+		while cur_node.expanded and cur_node.last_child do
 			cur_node = cur_node.last_child
 		end
 
@@ -244,7 +246,7 @@ local function update_explorer_ui(explorer: ExplorerUI)
 			item.padding.PaddingLeft = UDim.new(0, cur_node.indentation * 10)
 
 			-- update expand icon
-			item.expandicon.Text = cur_node.child and "v" or ">"
+			item.expandicon.Text = cur_node.expanded and "v" or ">"
 
 			-- update name
 			local inst = cur_node.instance
@@ -323,7 +325,8 @@ local function create_explorer_item(explorer: ExplorerUI)
 			local node: ExplorerNode? = item.node
 			if node then
 				-- toggle expand
-				if not node.child then
+				node.expanded = not node.expanded
+				if node.expanded then
 					--expand_node(state, item.node)
 					for _, child in ipairs(node.instance:GetChildren()) do
 						new_child_node(child, node)
