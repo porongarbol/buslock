@@ -20,6 +20,10 @@ type ExplorerNode = {
 	-- ui related
 	indentation: number,
 	expanded: boolean,
+	last_item_associated: ExplorerUIItem?, -- I put this here just to implement a clever trick to check if this node is currently visible in the GUI. useful to reduce some GUI updates. explained in `update_explorer_ui`
+	removed: boolean, -- If the instance of this node was destroyed.
+	-- This is implemented externally
+	-- But in Buslock, I use a node_lookup and search for the comment ---HANDLE OF REMOVING---
 
 	-- reference to the nodes
 	-- this will allow us to do many kind of operations quickly
@@ -38,7 +42,8 @@ local function new_node(instance: Instance): ExplorerNode
 	local node: ExplorerNode = {
 		instance = instance,
 		indentation = 0,
-		expanded = false
+		expanded = false,
+		removed = false,
 	}
 	
 	return node
@@ -49,6 +54,7 @@ local function new_child_node(instance: Instance, parent: ExplorerNode): Explore
 		instance = instance,
 		indentation = parent.indentation + 1,
 		expanded = false,
+		removed = parent.removed,
 		parent = parent,
 		back = parent.last_child
 	}
@@ -202,10 +208,13 @@ do
 end
 
 -- explorer gui
+type ExplorerNodeLookup = {[Instance]: ExplorerNode} -- value references should be weak!
+
 type ExplorerUI = {
 	node: ExplorerNode,
 	items: {ExplorerUIItem},
-	should_update_ui: boolean, -- this should be handled externally
+	node_lookup: ExplorerNodeLookup,
+	should_update_ui: boolean -- this should be handled externally
 	-- something should detect when ExplorerUI.should_update_ui becomes true and update the UI
 	-- this is to avoid updating the UI multiple times a frame
 }
@@ -220,6 +229,20 @@ type ExplorerUIItem = {
 	update_name_event: RBXScriptConnection?
 }
 
+local function add_to_lookup(lookup: ExplorerNodeLookup, node: ExplorerNode)
+	lookup[node.instance] = node
+end
+
+local function get_item_background_color(item: ExplorerUIItem)
+	return item.node and item.node.removed and Color3.fromRGB(250, 100, 60)
+		or sidebar.BackgroundColor3
+end
+
+local function get_item_hover_background_color(item: ExplorerUIItem)
+	return item.node and item.node.removed and Color3.fromRGB(250, 20, 20)
+		or Color3.fromRGB(60, 100, 250)
+end
+
 local function update_explorer_ui(explorer: ExplorerUI)
 	local node = explorer.node
 	topbartitle.Text = node.parent and node.parent.instance.Name or node.instance.Name
@@ -233,14 +256,28 @@ local function update_explorer_ui(explorer: ExplorerUI)
 		end
 
 		if cur_node then
-			item.node = cur_node	-- this is actually more involved
-			-- due to the autonomous functioning of signals
-			-- there is a lot more going on
-			-- check out when the items are created
-			-- that handles the expand button, and many other things
-			-- this just instruments the expand button, which node to expand
+			-- ok so this is complicated so I'll try to explain at the best of my ability
+			
+			-- the reason this is important is
+			-- because buttons like 'expand' in the item
+			-- need information about the node
+			-- and this is the best way to give the node information to the item
+			item.node = cur_node
+			
+			-- this is so I can check if a node is visible in the GUI
+			-- we will start with a general assumption
+			-- if cur_node.last_item_associated.node == item.node then node is visible
+			-- why?
+			-- let's say the first item stores a node
+			-- if we scroll down, the first item will of course store another node
+			-- however, the node that was in the first item, will still point to the first item
+			-- while that first item stores information about other node
+			cur_node.last_item_associated = item
 
 			item.frame.Visible = true
+			
+			-- update background color
+			item.frame.BackgroundColor3 = get_item_background_color(item)
 
 			-- update indentation
 			item.padding.PaddingLeft = UDim.new(0, cur_node.indentation * 10)
@@ -266,7 +303,6 @@ end
 local function create_explorer_item(explorer: ExplorerUI)
 	local frame = Instance.new("Frame")
 	frame.Size = UDim2.new(1, 0, 0, 20)
-	frame.BackgroundColor3 = sidebar.BackgroundColor3
 	frame.BackgroundTransparency = 0.5
 	frame.Parent = sidebar
 
@@ -302,7 +338,7 @@ local function create_explorer_item(explorer: ExplorerUI)
 	table.insert(connections,
 		frame.MouseEnter:Connect(function()
 			if item.node then
-				frame.BackgroundColor3 = Color3.fromRGB(60, 100, 250)
+				frame.BackgroundColor3 = get_item_hover_background_color(item)
 			end
 		end)
 	)
@@ -310,7 +346,7 @@ local function create_explorer_item(explorer: ExplorerUI)
 	table.insert(connections,
 		frame.MouseLeave:Connect(function()
 			if item.node then
-				frame.BackgroundColor3 = sidebar.BackgroundColor3
+				frame.BackgroundColor3 = get_item_background_color(item)
 			end
 		end)
 	)
@@ -329,7 +365,8 @@ local function create_explorer_item(explorer: ExplorerUI)
 				if node.expanded then
 					--expand_node(state, item.node)
 					for _, child in ipairs(node.instance:GetChildren()) do
-						new_child_node(child, node)
+						local child_node = new_child_node(child, node)
+						add_to_lookup(explorer.node_lookup, child_node)
 					end
 				else
 					contract_node(node)
@@ -345,7 +382,11 @@ local function create_explorer_item(explorer: ExplorerUI)
 	table.insert(explorer.items, item)
 end
 
+local lookup: ExplorerNodeLookup = {}
+setmetatable(lookup, {__mode = "v"})
+
 local root_node = new_node(workspace)
+add_to_lookup(lookup, root_node)
 
 do
 	local prev_node = root_node
@@ -358,6 +399,7 @@ do
 		local node = new_node(service)
 		node.back = prev_node
 		prev_node.next = node
+		add_to_lookup(lookup, node)
 		
 		prev_node = node
 	end
@@ -366,6 +408,7 @@ end
 local explorer: ExplorerUI = {
 	node = root_node,
 	items = {},
+	node_lookup = lookup,
 	should_update_ui = true
 }
 
@@ -380,6 +423,27 @@ table.insert(connections,
 		if explorer.should_update_ui then
 			update_explorer_ui(explorer)
 			explorer.should_update_ui = false
+		end
+	end)
+)
+
+-- handle when an instance is removed
+---HANDLE OF REMOVING---
+table.insert(connections,
+	game.DescendantRemoving:Connect(function(instance: Instance)
+		local node: ExplorerNode? = explorer.node_lookup[instance]
+		if node -- The instance is somewhere in the GUI
+		then
+			node.removed = true
+			
+			-- if changing .removed = true
+			-- implies updating the screen
+			-- then do it
+			-- this checks if the node is visible in the screen
+			-- the trick is explained in `update_explorer_ui`
+			if node.last_item_associated and node.last_item_associated.node == node then
+				explorer.should_update_ui = true
+			end
 		end
 	end)
 )
