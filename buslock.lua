@@ -19,9 +19,6 @@ type ExplorerNode = {
 
 	-- ui related
 	indentation: number,
-	removed: boolean, 	-- if the 'instance' property of this node was destroyed
-	-- this is handled somewhere in the code via signals
-	-- search ---HANDLING OF REMOVING--- to find that part
 
 	-- reference to the nodes
 	-- this will allow us to do many kind of operations quickly
@@ -36,30 +33,22 @@ type ExplorerNode = {
 	parent: ExplorerNode?
 }
 
--- This just contains state about the current linked list
--- Only made in case I later want to have two explorer views
-type ExplorerLinkedList = {
-	instances_map: {[Instance]: ExplorerNode} -- NOTE: instance_node should always be a table with weak values
-}
-
-local function new_node(state: ExplorerLinkedList, instance: Instance): ExplorerNode
+local function new_node(instance: Instance): ExplorerNode
 	local node: ExplorerNode = {
 		instance = instance,
 		indentation = 0,
 		removed = false
 	}
 	
-	state.instances_map[instance] = node
 	return node
 end
 
-local function new_child_node(state: ExplorerLinkedList, instance: Instance, parent: ExplorerNode): ExplorerNode
+local function new_child_node(instance: Instance, parent: ExplorerNode): ExplorerNode
 	local node: ExplorerNode = {
 		instance = instance,
 		indentation = parent.indentation + 1,
 		parent = parent,
-		back = parent.last_child,
-		removed = parent.removed
+		back = parent.last_child
 	}
 	if parent.last_child then
 		parent.last_child.next = node
@@ -68,16 +57,8 @@ local function new_child_node(state: ExplorerLinkedList, instance: Instance, par
 		parent.child = node
 	end
 	parent.last_child = node
-	
-	state.instances_map[instance] = node	
-	return node
-end
 
-local function expand_node(state: ExplorerLinkedList, node: ExplorerNode)
-	-- TODO: this doesn't update when a new child is added or deleted
-	for _, child in ipairs(node.instance:GetChildren()) do
-		new_child_node(state, child, node)
-	end
+	return node
 end
 
 local function contract_node(node: ExplorerNode)
@@ -108,42 +89,15 @@ local function get_prev_node(node: ExplorerNode): ExplorerNode?
 		while cur_node.last_child do
 			cur_node = cur_node.last_child
 		end
-		
+
 		return cur_node
 	end
-	
+
 	if node.parent then
 		return node.parent
 	end
 
 	return nil
-end
-
-local state: ExplorerLinkedList = {
-	 instances_map = {}
-}
-setmetatable(state.instances_map, {__mode = "v"})
-
-local root_node: ExplorerNode = new_node(state, workspace)
-
-local ui_node: ExplorerNode = root_node
-
-do
-	local cur_node: ExplorerNode = root_node
-
-	for _, servicename in ipairs(
-		{"Players", "Lighting", "ReplicatedFirst", "ReplicatedStorage", "StarterGui", "StarterPack", "StarterPlayer", "Teams", "SoundService"}
-		)
-	do
-		local service = game:GetService(servicename)
-		local node = new_node(state, service)
-		node.back = cur_node
-
-		cur_node.next = node
-
-		assert(cur_node.next)
-		cur_node = cur_node.next
-	end
 end
 
 -- gui
@@ -246,6 +200,11 @@ do
 end
 
 -- explorer gui
+type ExplorerUI = {
+	node: ExplorerNode,
+	items: {ExplorerUIItem}
+}
+
 type ExplorerUIItem = {
 	frame: Frame,
 	padding: UIPadding,
@@ -256,26 +215,20 @@ type ExplorerUIItem = {
 	update_name_event: RBXScriptConnection?
 }
 
-local explorer_items: {ExplorerUIItem} = {}
+local function update_explorer_ui(explorer: ExplorerUI)
+	local node = explorer.node
+	topbartitle.Text = node.parent and node.parent.instance.Name or node.instance.Name
 
-local function get_item_background_color(item: ExplorerUIItem)
-	return item.node and item.node.removed and Color3.fromRGB(250, 100, 60)
-		or sidebar.BackgroundColor3
-end
-
-local function update_explorer_ui()
-	local node: ExplorerNode? = ui_node
-	topbartitle.Text = ui_node.parent and ui_node.parent.instance.Name or ui_node.instance.Name
-
-	for _, item in ipairs(explorer_items) do
+	local cur_node: ExplorerNode? = explorer.node
+	for _, item in ipairs(explorer.items) do
 		if item.update_name_event then
 			item.update_name_event:Disconnect()
 			item.update_name_event = nil
 			connections[item] = nil
 		end
 
-		if node then
-			item.node = node	-- this is actually more involved
+		if cur_node then
+			item.node = cur_node	-- this is actually more involved
 			-- due to the autonomous functioning of signals
 			-- there is a lot more going on
 			-- check out when the items are created
@@ -285,31 +238,30 @@ local function update_explorer_ui()
 			item.frame.Visible = true
 
 			-- update background color
-			item.frame.BackgroundColor3 = get_item_background_color(item)
+			item.frame.BackgroundColor3 = sidebar.BackgroundColor3
 
 			-- update indentation
-			item.padding.PaddingLeft = UDim.new(0, node.indentation * 10)
+			item.padding.PaddingLeft = UDim.new(0, cur_node.indentation * 10)
 
 			-- update expand icon
-			item.expandicon.Text = node.child and "v" or ">"
+			item.expandicon.Text = cur_node.child and "v" or ">"
 
 			-- update name
-			local inst = node.instance
+			local inst = cur_node.instance
 			item.instname.Text = inst.Name
 			item.update_name_event = inst:GetPropertyChangedSignal("Name"):Connect(function()
 				item.instname.Text = inst.Name
 			end)
 			connections[item] = item.update_name_event
 
-			node = get_next_node(node)
+			cur_node = get_next_node(cur_node)
 		else
 			item.frame.Visible = false
 		end
 	end
 end
 
--- create explorer items
-for i = 1, amount_of_items do
+local function create_explorer_item(explorer: ExplorerUI)
 	local frame = Instance.new("Frame")
 	frame.Size = UDim2.new(1, 0, 0, 20)
 	frame.BackgroundTransparency = 0.5
@@ -347,9 +299,7 @@ for i = 1, amount_of_items do
 	table.insert(connections,
 		frame.MouseEnter:Connect(function()
 			if item.node then
-				frame.BackgroundColor3 =
-					item.node.removed and Color3.fromRGB(250, 20, 20)
-					or Color3.fromRGB(60, 100, 250)
+				frame.BackgroundColor3 = Color3.fromRGB(60, 100, 250)
 			end
 		end)
 	)
@@ -357,7 +307,7 @@ for i = 1, amount_of_items do
 	table.insert(connections,
 		frame.MouseLeave:Connect(function()
 			if item.node then
-				frame.BackgroundColor3 = get_item_background_color(item)
+				frame.BackgroundColor3 = sidebar.BackgroundColor3
 			end
 		end)
 	)
@@ -366,68 +316,76 @@ for i = 1, amount_of_items do
 	table.insert(connections,
 		expandicon.Activated:Connect(function()
 			-- this might be confusing
-			-- node.node isn't defined here
+			-- item.node isn't defined here
 			-- it's defined somewhere else in the code (in 'update_explorer_ui')
-			-- node.node actually refers to a ExplorerNode
-			if item.node then
+			-- item.node actually refers to a ExplorerNode
+			local node: ExplorerNode? = item.node
+			if node then
 				-- toggle expand
-				if not item.node.child then
-					expand_node(state, item.node)
+				if not node.child then
+					--expand_node(state, item.node)
+					for _, child in ipairs(node.instance:GetChildren()) do
+						new_child_node(child, node)
+					end
 				else
-					contract_node(item.node)
+					contract_node(node)
 				end
 
-				update_explorer_ui()
+				update_explorer_ui(explorer)
 			end
 		end)
 	)
 
-	table.insert(explorer_items, item)
+	table.insert(explorer.items, item)
 end
 
-update_explorer_ui()
+local root_node = new_node(workspace)
+
+do
+	local prev_node = root_node
+	for _, servicename in ipairs(
+		{"Players", "Lighting", "ReplicatedFirst", "ReplicatedStorage", "StarterGui", "StarterPack", "StarterPlayer", "Teams", "SoundService"}
+		)
+	do
+		local service = game:GetService(servicename)
+		
+		local node = new_node(service)
+		node.back = prev_node
+		prev_node.next = node
+		
+		prev_node = node
+	end
+end
+
+local explorer: ExplorerUI = {
+	node = root_node,
+	items = {},
+}
+
+-- create explorer items
+for i = 1, amount_of_items do
+	create_explorer_item(explorer)
+end
+
+update_explorer_ui(explorer)
 
 -- scrolling functionality
 table.insert(connections,
 	sidebar.MouseWheelForward:Connect(function()
-		local back = get_prev_node(ui_node)
+		local back = get_prev_node(explorer.node)
 		if back then
-			ui_node = back
-			update_explorer_ui()
+			explorer.node = back
+			update_explorer_ui(explorer)
 		end
 	end)
 )
 
 table.insert(connections,
 	sidebar.MouseWheelBackward:Connect(function()
-		local next = get_next_node(ui_node)
+		local next = get_next_node(explorer.node)
 		if next then
-			ui_node = next
-			update_explorer_ui()
-		end
-	end)
-)
-
----HANDLING OF REMOVING---
-local update_ui = false
-
-table.insert(connections,
-	game.DescendantRemoving:Connect(function(inst)
-		if state.instances_map[inst] then
-			state.instances_map[inst].removed = true
-			update_ui = true
-		end
-	end)
-)
-
-table.insert(connections,
-	game:GetService("RunService").Heartbeat:Connect(function()
-		-- this is so
-		-- if many instances are removed in a frame
-		-- it doesn't update multiple times in a frame but once
-		if update_ui then
-			update_explorer_ui()
-			update_ui = false
+			explorer.node = next
+			update_explorer_ui(explorer)
 		end
 	end)
 )
