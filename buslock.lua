@@ -202,7 +202,10 @@ end
 -- explorer gui
 type ExplorerUI = {
 	node: ExplorerNode,
-	items: {ExplorerUIItem}
+	items: {ExplorerUIItem},
+	should_update_ui: boolean, -- this should be handled externally
+	-- something should detect when ExplorerUI.should_update_ui becomes true and update the UI
+	-- this is to avoid updating the UI multiple times a frame
 }
 
 type ExplorerUIItem = {
@@ -330,8 +333,10 @@ local function create_explorer_item(explorer: ExplorerUI)
 				else
 					contract_node(node)
 				end
-
-				update_explorer_ui(explorer)
+				
+				-- this isn't handled here either
+				-- a comment in ExplorerUI explains it
+				explorer.should_update_ui = true
 			end
 		end)
 	)
@@ -360,6 +365,7 @@ end
 local explorer: ExplorerUI = {
 	node = root_node,
 	items = {},
+	should_update_ui = true
 }
 
 -- create explorer items
@@ -367,7 +373,16 @@ for i = 1, amount_of_items do
 	create_explorer_item(explorer)
 end
 
-update_explorer_ui(explorer)
+-- update ui
+table.insert(connections,
+	game:GetService("RunService").Heartbeat:Connect(function()
+		if explorer.should_update_ui then
+			update_explorer_ui(explorer)
+			explorer.should_update_ui = false
+		end
+	end)
+)
+
 
 -- scrolling functionality
 table.insert(connections,
@@ -375,7 +390,7 @@ table.insert(connections,
 		local back = get_prev_node(explorer.node)
 		if back then
 			explorer.node = back
-			update_explorer_ui(explorer)
+			explorer.should_update_ui = true
 		end
 	end)
 )
@@ -385,7 +400,7 @@ table.insert(connections,
 		local next = get_next_node(explorer.node)
 		if next then
 			explorer.node = next
-			update_explorer_ui(explorer)
+			explorer.should_update_ui = true
 		end
 	end)
 )
