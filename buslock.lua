@@ -240,9 +240,6 @@ local function update_explorer_ui(explorer: ExplorerUI)
 
 			item.frame.Visible = true
 
-			-- update background color
-			item.frame.BackgroundColor3 = sidebar.BackgroundColor3
-
 			-- update indentation
 			item.padding.PaddingLeft = UDim.new(0, cur_node.indentation * 10)
 
@@ -267,6 +264,7 @@ end
 local function create_explorer_item(explorer: ExplorerUI)
 	local frame = Instance.new("Frame")
 	frame.Size = UDim2.new(1, 0, 0, 20)
+	frame.BackgroundColor3 = sidebar.BackgroundColor3
 	frame.BackgroundTransparency = 0.5
 	frame.Parent = sidebar
 
@@ -382,7 +380,6 @@ table.insert(connections,
 		end
 	end)
 )
-
 
 -- scrolling functionality
 table.insert(connections,
