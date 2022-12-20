@@ -8,10 +8,15 @@
 -- FEATURES:
 -- - expand and contract
 -- - explorer names do update
--- - when an instance is removed, the explorer instead of removing the button showing that instance, makes it become red
+-- - UI reflects removed items and added items
 -- - able to drag the GUI
 -- - proper disconnection of signals when the script is ran again or closed
 -- - fast
+
+if _G.buslock_quit then
+	_G.buslock_quit()
+	_G.buslock_quit = nil
+end
 
 -- Linked list implementation to store currently visible in the GUI game instances
 type ExplorerNode = {
@@ -125,55 +130,150 @@ xpcall(
 	end
 )
 
-local sidebar_items_size = 20
-local amount_of_items = 30
+function _G.buslock_quit()
+	gui:Destroy()
+
+	for _, connection in pairs(connections) do
+		connection:Disconnect()
+	end
+end
+
+local function round_corners(instance: Instance): UICorner
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = instance
+
+	return corner
+end
+
+local function add_padding(instance: Instance, left: number, top: number, right: number, bottom: number): UIPadding
+	local padding = Instance.new("UIPadding")
+	padding.PaddingLeft = UDim.new(0, left)
+	padding.PaddingTop = UDim.new(0, top)
+	padding.PaddingRight = UDim.new(0, right)
+	padding.PaddingBottom = UDim.new(0, bottom)
+	padding.Parent = instance
+
+	return padding
+end
+
+local topbar_color = Color3.fromRGB(40, 40, 40)
+local topbartext_color = Color3.fromRGB(255, 255, 255)
+local topbartext_selected_color = Color3.fromRGB(212, 244, 255)
+local background_color = Color3.fromRGB(252, 252, 252)
+local background_outline = Color3.fromRGB(222, 222, 222)
+local background_textcolor = Color3.fromRGB(0, 0, 0)
+local item_selected = Color3.fromRGB(104, 148, 217)
+local item_selected_border = Color3.fromRGB(80, 115, 168)
+local item_selected_border = Color3.fromRGB(80, 115, 168)
+local item_selected_textcolor = Color3.fromRGB(255, 255, 255)
+local item_deleted = Color3.fromRGB(232, 48, 51)
+local item_deleted_selected = Color3.fromRGB(255, 53, 56)
+local item_deleted_border = Color3.fromRGB(170, 35, 40)
+local item_deleted_textcolor = Color3.fromRGB(255, 255, 255)
+local item_added = Color3.fromRGB(46, 191, 24)
+local item_added_selected = Color3.fromRGB(55, 229, 29)
+local item_added_border = Color3.fromRGB(47, 184, 22)
+local item_added_textcolor = Color3.fromRGB(255, 255, 255)
+
+local topbar_size = 30
+local explorer_size = 400
+local ui_width = 300
+
+local background = Instance.new("Frame")
+background.Position = UDim2.fromOffset(10, 10)
+background.Size = UDim2.fromOffset(ui_width, explorer_size + topbar_size)
+background.ClipsDescendants = true
+background.BackgroundColor3 = background_color
+round_corners(background)
+background.Parent = gui
+
+do
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = topbar_color
+	stroke.Parent = background
+
+	local list = Instance.new("UIListLayout")
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Parent = background
+end
 
 local topbar = Instance.new("Frame")
-topbar.Size = UDim2.new(0, 200, 0, 20)
-topbar.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
-topbar.Parent = gui
+topbar.Size = UDim2.new(1, 0, 0, topbar_size)
+topbar.BackgroundColor3 = topbar_color
+round_corners(topbar)
+topbar.Parent = background
+
+local topbar_square_corners = Instance.new("Frame")
+topbar_square_corners.Size = UDim2.fromScale(1, 0.5)
+topbar_square_corners.Position = UDim2.fromScale(0, 0.5)
+topbar_square_corners.BorderSizePixel = 0
+topbar_square_corners.BackgroundColor3 = topbar_color
+topbar_square_corners.Parent = topbar
 
 local topbartitle = Instance.new("TextLabel")
 topbartitle.TextXAlignment = Enum.TextXAlignment.Left
-topbartitle.Size = UDim2.fromScale(1, 1)
+topbartitle.Font = Enum.Font.Ubuntu
 topbartitle.BackgroundTransparency = 1
+topbartitle.Size = UDim2.fromScale(0.5, 1)
+topbartitle.TextSize = 14
+topbartitle.TextColor3 = topbartext_color
+add_padding(topbartitle, 10, 0, 0, 0)
 topbartitle.Parent = topbar
 
-local titlepadding = Instance.new("UIPadding")
-titlepadding.PaddingLeft = UDim.new(0, 5)
-titlepadding.Parent = topbartitle
+local topbar_button_width = 20
+local ui_expanded = true
+local hidebutton: ImageButton;
+local closebutton: ImageButton;
 
-local closebutton = Instance.new("TextButton")
-closebutton.Position = UDim2.fromScale(1, 0)
-closebutton.AnchorPoint = Vector2.new(1, 0)
-closebutton.Size = UDim2.fromScale(1, 1)
-closebutton.SizeConstraint = Enum.SizeConstraint.RelativeYY
-closebutton.Text = "X"
-closebutton.Parent = topbar
+do
+	local padding = 5
+	
+	closebutton = Instance.new("ImageButton")
+	closebutton.Size = UDim2.new(0, topbar_button_width, 1, -padding * 2)
+	closebutton.AnchorPoint = Vector2.new(1, 0.5)
+	closebutton.Position = UDim2.new(1, -padding, 0.5, 0)
+	closebutton.Image = "http://www.roblox.com/asset/?id=10830675223"
+	closebutton.BackgroundTransparency = 1
+	closebutton.Parent = topbar
+	
+	hidebutton = Instance.new("ImageButton")
+	hidebutton.Size = UDim2.new(0, topbar_button_width, 1, -padding * 2)
+	hidebutton.AnchorPoint = Vector2.new(1, 0.5)
+	hidebutton.Position = UDim2.new(1, -padding -topbar_button_width -padding, 0.5, 0)
+	hidebutton.Image = "http://www.roblox.com/asset/?id=6972508944"
+	hidebutton.BackgroundTransparency = 1
+	hidebutton.Parent = topbar
+	
+	table.insert(connections,
+		hidebutton.Activated:Connect(function()
+			ui_expanded = not ui_expanded
+			if ui_expanded then
+				background.Size = UDim2.fromOffset(ui_width, topbar_size + explorer_size)
+				topbar_square_corners.Visible = true
+			else
+				background.Size = UDim2.fromOffset(ui_width, topbar_size)
+				topbar_square_corners.Visible = false
+			end
+		end)
+	)
+	
+	table.insert(connections,
+		closebutton.Activated:Connect(_G.buslock_quit)
+	)
+end
 
-local hidebutton = Instance.new("TextButton")
-hidebutton.Position = UDim2.fromScale(0, 0)
-hidebutton.AnchorPoint = Vector2.new(1, 0)
-hidebutton.Size = UDim2.fromScale(1, 1)
-hidebutton.SizeConstraint = Enum.SizeConstraint.RelativeYY
-hidebutton.Text = "V"
-hidebutton.Parent = closebutton
+local explorerframe = Instance.new("Frame")
+explorerframe.Size = UDim2.new(1, 0, 0, explorer_size)
+explorerframe.Position = UDim2.fromOffset(0, topbar_size)
+explorerframe.BackgroundTransparency = 1
+explorerframe.Parent = topbar
 
-local sidebar = Instance.new("Frame")
-sidebar.Size = UDim2.new(1, 0, 0, sidebar_items_size * amount_of_items)
-sidebar.Position = UDim2.fromScale(0, 1)
-sidebar.BorderSizePixel = 0
-sidebar.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-sidebar.Parent = topbar
-
-local layout = Instance.new("UIListLayout")
-layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Parent = sidebar
-
-hidebutton.Activated:Connect(function()
-	sidebar.Visible = not sidebar.Visible
-	hidebutton.Text = sidebar.Visible and "v" or "^"
-end)
+do
+	local list = Instance.new("UIListLayout")
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Parent = explorerframe
+end
 
 -- dragging
 do
@@ -186,12 +286,12 @@ do
 				return
 			end
 
-			local originX = mouse.X - topbar.AbsolutePosition.X
-			local originY = mouse.Y - topbar.AbsolutePosition.Y
+			local originX = mouse.X - background.AbsolutePosition.X
+			local originY = mouse.Y - background.AbsolutePosition.Y
 
 			dragging = true
 			while dragging do
-				topbar.Position = UDim2.fromOffset(mouse.X - originX, mouse.Y - originY)
+				background.Position = UDim2.fromOffset(mouse.X - originX, mouse.Y - originY)
 				task.wait()
 			end
 		end)
@@ -224,7 +324,7 @@ type ExplorerUIItem = {
 	frame: Frame,
 	padding: UIPadding,
 	instname: TextButton,
-	expandicon: TextButton,
+	expandicon: ImageLabel,
 	node: ExplorerNode?,
 
 	update_name_event: RBXScriptConnection?
@@ -234,16 +334,44 @@ local function add_to_lookup(lookup: ExplorerNodeLookup, node: ExplorerNode)
 	lookup[node.instance] = node
 end
 
-local function get_item_background_color(item: ExplorerUIItem)
-	return item.node and item.node.removed and Color3.fromRGB(250, 100, 60)
-		or item.node and item.node.recently_added and Color3.fromRGB(60, 250, 100)
-		or sidebar.BackgroundColor3
+local function color_item(item: ExplorerUIItem)
+	if item.node and item.node.removed then
+		item.frame.BackgroundColor3 = item_deleted
+		item.frame.BorderColor3 = item_deleted_border
+		item.instname.TextColor3 = item_deleted_textcolor
+		return
+	end
+	
+	if item.node and item.node.recently_added then
+		item.frame.BackgroundColor3 = item_added
+		item.frame.BorderColor3 = item_added_border
+		item.instname.TextColor3 = item_added_textcolor
+		return
+	end
+	
+	item.frame.BackgroundColor3 = background_color
+	item.frame.BorderColor3 = background_outline
+	item.instname.TextColor3 = background_textcolor
 end
 
-local function get_item_hover_background_color(item: ExplorerUIItem)
-	return item.node and item.node.removed and Color3.fromRGB(250, 20, 20)
-		or item.node and item.node.recently_added and Color3.fromRGB(20, 250, 20)
-		or Color3.fromRGB(60, 100, 250)
+local function color_hovered_item(item: ExplorerUIItem)
+	if item.node and item.node.removed then
+		item.frame.BackgroundColor3 = item_deleted_selected
+		item.frame.BorderColor3 = item_deleted_border
+		item.instname.TextColor3 = item_deleted_textcolor
+		return
+	end
+
+	if item.node and item.node.recently_added then
+		item.frame.BackgroundColor3 = item_added_selected
+		item.frame.BorderColor3 = item_added_border
+		item.instname.TextColor3 = item_added_textcolor
+		return
+	end
+	
+	item.frame.BackgroundColor3 = item_selected
+	item.frame.BorderColor3 = item_selected_border
+	item.instname.TextColor3 = item_selected_textcolor
 end
 
 local function update_explorer_ui(explorer: ExplorerUI)
@@ -279,14 +407,14 @@ local function update_explorer_ui(explorer: ExplorerUI)
 
 			item.frame.Visible = true
 
-			-- update background color
-			item.frame.BackgroundColor3 = get_item_background_color(item)
+			-- update colors
+			color_item(item)
 
 			-- update indentation
 			item.padding.PaddingLeft = UDim.new(0, cur_node.indentation * 10)
 
 			-- update expand icon
-			item.expandicon.Text = cur_node.expanded and "v" or ">"
+			item.expandicon.Rotation = cur_node.expanded and 90 or 0
 
 			-- update name
 			local inst = cur_node.instance
@@ -306,30 +434,35 @@ end
 local function create_explorer_item(explorer: ExplorerUI)
 	local frame = Instance.new("Frame")
 	frame.Size = UDim2.new(1, 0, 0, 20)
-	frame.BackgroundTransparency = 0.5
-	frame.Parent = sidebar
+	frame.Parent = explorerframe
 
-	local padding = Instance.new("UIPadding")
-	padding.Parent = frame
+	local padding = add_padding(frame, 0, 0, 0, 0)
+	local expand_icon_width = 30
 
 	local instname = Instance.new("TextButton")
-	instname.Name = "name"
 	instname.BorderSizePixel = 0
 	instname.BackgroundTransparency = 1
 	instname.AutoButtonColor = false
 	instname.Size = UDim2.new(1, -20, 1, 0) 
-	instname.Position = UDim2.fromOffset(20, 0)
+	instname.Position = UDim2.fromOffset(expand_icon_width, 0)
 	instname.TextXAlignment = Enum.TextXAlignment.Left
 	instname.Parent = frame
 
-	local expandicon = Instance.new("TextButton")
-	expandicon.Name = "expand"
-	expandicon.BorderSizePixel = 0
+	local expandframe = Instance.new("TextButton")
+	expandframe.BackgroundTransparency = 1
+	expandframe.TextTransparency = 1
+	expandframe.Size = UDim2.new(0, expand_icon_width, 1, 0)
+	expandframe.Parent = frame
+	
+	local expandicon = Instance.new("ImageLabel")
 	expandicon.BackgroundTransparency = 1
-	expandicon.AutoButtonColor = false
-	expandicon.Size = UDim2.new(0, 20, 1, 0)
-	expandicon.Text = ">"
-	expandicon.Parent = frame
+	expandicon.Size = UDim2.fromOffset(5, 7)
+	expandicon.Image = "http://www.roblox.com/asset/?id=7577501468"
+	expandicon.ImageColor3 = Color3.fromRGB(63, 63, 63) -- this shouldn't have its own variable because this is just to darken another color
+	expandicon.ImageTransparency = 0.5
+	expandicon.Position = UDim2.fromScale(0.5, 0.5)
+	expandicon.AnchorPoint = Vector2.new(0.5, 0.5)
+	expandicon.Parent = expandframe
 
 	local item: ExplorerUIItem = {
 		frame = frame,
@@ -341,7 +474,7 @@ local function create_explorer_item(explorer: ExplorerUI)
 	table.insert(connections,
 		frame.MouseEnter:Connect(function()
 			if item.node then
-				frame.BackgroundColor3 = get_item_hover_background_color(item)
+				color_hovered_item(item)
 			end
 		end)
 	)
@@ -349,14 +482,14 @@ local function create_explorer_item(explorer: ExplorerUI)
 	table.insert(connections,
 		frame.MouseLeave:Connect(function()
 			if item.node then
-				frame.BackgroundColor3 = get_item_background_color(item)
+				color_item(item)
 			end
 		end)
 	)
 
 	-- handle expand button
 	table.insert(connections,
-		expandicon.Activated:Connect(function()
+		expandframe.Activated:Connect(function()
 			-- this might be confusing
 			-- item.node isn't defined here
 			-- it's defined somewhere else in the code (in 'update_explorer_ui')
@@ -416,7 +549,7 @@ local explorer: ExplorerUI = {
 }
 
 -- create explorer items
-for i = 1, amount_of_items do
+for i = 1, explorer_size / 20 do
 	create_explorer_item(explorer)
 end
 
@@ -472,7 +605,7 @@ table.insert(connections,
 
 -- scrolling functionality
 table.insert(connections,
-	sidebar.MouseWheelForward:Connect(function()
+	explorerframe.MouseWheelForward:Connect(function()
 		local back = get_prev_node(explorer.node)
 		if back then
 			explorer.node = back
@@ -482,7 +615,7 @@ table.insert(connections,
 )
 
 table.insert(connections,
-	sidebar.MouseWheelBackward:Connect(function()
+	explorerframe.MouseWheelBackward:Connect(function()
 		local next = get_next_node(explorer.node)
 		if next then
 			explorer.node = next
@@ -490,19 +623,3 @@ table.insert(connections,
 		end
 	end)
 )
-
--- quit functionality
-if _G.buslock_quit then
-	_G.buslock_quit()
-	_G.buslock_quit = nil
-end
-
-function _G.buslock_quit()
-	gui:Destroy()
-
-	for _, connection in pairs(connections) do
-		connection:Disconnect()
-	end
-end
-
-closebutton.Activated:Connect(_G.buslock_quit)
