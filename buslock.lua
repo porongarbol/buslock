@@ -21,9 +21,8 @@ type ExplorerNode = {
 	indentation: number,
 	expanded: boolean,
 	last_item_associated: ExplorerUIItem?, -- I put this here just to implement a clever trick to check if this node is currently visible in the GUI. useful to reduce some GUI updates. explained in `update_explorer_ui`
-	removed: boolean, -- If the instance of this node was destroyed.
-	-- This is implemented externally
-	-- But in Buslock, I use a node_lookup and search for the comment ---HANDLE OF REMOVING---
+	removed: boolean, -- This will give the item a red color
+	recently_added: boolean, -- This will give the item a green color -- TODO: merge `recently_added` and `removed` into a single variable. because they just represent three states: normal node, removed node, and recently added node. so they should all be together with an enum or smt
 
 	-- reference to the nodes
 	-- this will allow us to do many kind of operations quickly
@@ -44,8 +43,9 @@ local function new_node(instance: Instance): ExplorerNode
 		indentation = 0,
 		expanded = false,
 		removed = false,
+		recently_added = false,
 	}
-	
+
 	return node
 end
 
@@ -55,6 +55,7 @@ local function new_child_node(instance: Instance, parent: ExplorerNode): Explore
 		indentation = parent.indentation + 1,
 		expanded = false,
 		removed = parent.removed,
+		recently_added = parent.recently_added,
 		parent = parent,
 		back = parent.last_child
 	}
@@ -235,11 +236,13 @@ end
 
 local function get_item_background_color(item: ExplorerUIItem)
 	return item.node and item.node.removed and Color3.fromRGB(250, 100, 60)
+		or item.node and item.node.recently_added and Color3.fromRGB(60, 250, 100)
 		or sidebar.BackgroundColor3
 end
 
 local function get_item_hover_background_color(item: ExplorerUIItem)
 	return item.node and item.node.removed and Color3.fromRGB(250, 20, 20)
+		or item.node and item.node.recently_added and Color3.fromRGB(20, 250, 20)
 		or Color3.fromRGB(60, 100, 250)
 end
 
@@ -257,13 +260,13 @@ local function update_explorer_ui(explorer: ExplorerUI)
 
 		if cur_node then
 			-- ok so this is complicated so I'll try to explain at the best of my ability
-			
+
 			-- the reason this is important is
 			-- because buttons like 'expand' in the item
 			-- need information about the node
 			-- and this is the best way to give the node information to the item
 			item.node = cur_node
-			
+
 			-- this is so I can check if a node is visible in the GUI
 			-- we will start with a general assumption
 			-- if cur_node.last_item_associated.node == item.node then node is visible
@@ -275,7 +278,7 @@ local function update_explorer_ui(explorer: ExplorerUI)
 			cur_node.last_item_associated = item
 
 			item.frame.Visible = true
-			
+
 			-- update background color
 			item.frame.BackgroundColor3 = get_item_background_color(item)
 
@@ -371,7 +374,7 @@ local function create_explorer_item(explorer: ExplorerUI)
 				else
 					contract_node(node)
 				end
-				
+
 				-- this isn't handled here either
 				-- a comment in ExplorerUI explains it
 				explorer.should_update_ui = true
@@ -395,12 +398,12 @@ do
 		)
 	do
 		local service = game:GetService(servicename)
-		
+
 		local node = new_node(service)
 		node.back = prev_node
 		prev_node.next = node
 		add_to_lookup(lookup, node)
-		
+
 		prev_node = node
 	end
 end
@@ -428,20 +431,39 @@ table.insert(connections,
 )
 
 -- handle when an instance is removed
----HANDLE OF REMOVING---
 table.insert(connections,
 	game.DescendantRemoving:Connect(function(instance: Instance)
 		local node: ExplorerNode? = explorer.node_lookup[instance]
 		if node -- The instance is somewhere in the GUI
 		then
 			node.removed = true
-			
+			node.recently_added = false
+
 			-- if changing .removed = true
 			-- implies updating the screen
 			-- then do it
 			-- this checks if the node is visible in the screen
 			-- the trick is explained in `update_explorer_ui`
 			if node.last_item_associated and node.last_item_associated.node == node then
+				explorer.should_update_ui = true
+			end
+		end
+	end)
+)
+
+-- handle when an instance is added
+table.insert(connections,
+	game.DescendantAdded:Connect(function(instance: Instance)
+		local parent_node: ExplorerNode? = instance.Parent and explorer.node_lookup[instance.Parent]
+		if parent_node and parent_node.expanded then
+			local node = new_child_node(instance, parent_node)
+			add_to_lookup(explorer.node_lookup, node)
+			node.recently_added = true
+			
+			-- if previous node is visible then it probably means this one will be too
+			-- this trick is explained in `update_explorer_ui`
+			local prev_node = node.back or node.parent
+			if prev_node and prev_node.last_item_associated and prev_node.last_item_associated.node == prev_node then
 				explorer.should_update_ui = true
 			end
 		end
