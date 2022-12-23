@@ -431,6 +431,14 @@ local function update_explorer_ui(explorer: ExplorerUI)
 	end
 end
 
+local function expand_node(node: ExplorerNode, explorer: UIExplorer)
+	for _, child in ipairs(node.instance:GetChildren()) do
+		local child_node = new_child_node(child, node)
+		add_to_lookup(explorer.node_lookup, child_node)
+	end
+	node.expanded = true
+end
+
 local function create_explorer_item(explorer: ExplorerUI)
 	local frame = Instance.new("Frame")
 	frame.Size = UDim2.new(1, 0, 0, 20)
@@ -499,11 +507,11 @@ local function create_explorer_item(explorer: ExplorerUI)
 				-- toggle expand
 				node.expanded = not node.expanded
 				if node.expanded then
-					--expand_node(state, item.node)
-					for _, child in ipairs(node.instance:GetChildren()) do
-						local child_node = new_child_node(child, node)
-						add_to_lookup(explorer.node_lookup, child_node)
-					end
+					expand_node(item.node, explorer)
+					--for _, child in ipairs(node.instance:GetChildren()) do
+					--	local child_node = new_child_node(child, node)
+					--	add_to_lookup(explorer.node_lookup, child_node)
+					--end
 				else
 					contract_node(node)
 				end
@@ -623,3 +631,25 @@ table.insert(connections,
 		end
 	end)
 )
+
+-- simple API
+-- function _G.buslock_quit
+
+-- this makes the explorer let you explore an instance
+-- by doing _G.buslock_goto(instance)
+function _G.buslock_goto(instance: Instance)
+	local function get_node_of(instance: Instance)
+		local node = explorer.node_lookup[instance]
+		if node then
+			return node 
+		end
+		
+		assert(instance.Parent, "Instance cannot be parented to nil!")
+		local parent_node = get_node_of(instance.Parent)
+		expand_node(parent_node, explorer)
+		return get_node_of(instance)
+	end
+
+	explorer.node = get_node_of(instance)
+	explorer.should_update_ui = true
+end
