@@ -228,7 +228,7 @@ local closebutton: ImageButton;
 
 do
 	local padding = 5
-	
+
 	closebutton = Instance.new("ImageButton")
 	closebutton.Size = UDim2.new(0, topbar_button_width, 1, -padding * 2)
 	closebutton.AnchorPoint = Vector2.new(1, 0.5)
@@ -236,7 +236,7 @@ do
 	closebutton.Image = "http://www.roblox.com/asset/?id=10830675223"
 	closebutton.BackgroundTransparency = 1
 	closebutton.Parent = topbar
-	
+
 	hidebutton = Instance.new("ImageButton")
 	hidebutton.Size = UDim2.new(0, topbar_button_width, 1, -padding * 2)
 	hidebutton.AnchorPoint = Vector2.new(1, 0.5)
@@ -244,7 +244,7 @@ do
 	hidebutton.Image = "http://www.roblox.com/asset/?id=6972508944"
 	hidebutton.BackgroundTransparency = 1
 	hidebutton.Parent = topbar
-	
+
 	table.insert(connections,
 		hidebutton.Activated:Connect(function()
 			ui_expanded = not ui_expanded
@@ -257,7 +257,7 @@ do
 			end
 		end)
 	)
-	
+
 	table.insert(connections,
 		closebutton.Activated:Connect(_G.buslock_quit)
 	)
@@ -309,6 +309,179 @@ do
 end
 
 -- explorer gui
+
+-- TODO: finish this
+local default_icon_index = Vector2.new(0, 0)
+local icons_index: {[string]: Vector2} = {
+	Part = Vector2.new(16, 0);
+	WedgePart = Vector2.new(16, 0);
+	TrussPart = Vector2.new(16, 0);
+	RightAngleRampPart = Vector2.new(16, 0);
+	PyramidPart = Vector2.new(16, 0);
+	CornerWedgePart = Vector2.new(16, 0);
+	PrismPart = Vector2.new(16, 0);
+	ParallelRampPart = Vector2.new(16, 0);
+	Model = Vector2.new(32, 0);
+	Status = Vector2.new(32, 0);
+	DoubleConstrainedValue = Vector2.new(64, 0);
+	BrickColorValue = Vector2.new(64, 0);
+	ObjectValue = Vector2.new(64, 0);
+	Vector3Value = Vector2.new(64, 0);
+	NumberValue = Vector2.new(64, 0);
+	Color3Value = Vector2.new(64, 0);
+	BinaryStringValue = Vector2.new(64, 0);
+	TextureTrail = Vector2.new(64, 0);
+	CFrameValue = Vector2.new(64, 0);
+	StringValue = Vector2.new(64, 0);
+	IntValue = Vector2.new(64, 0);
+	FloorWire = Vector2.new(64, 0);
+	CustomEvent = Vector2.new(64, 0);
+	RayValue = Vector2.new(64, 0);
+	BoolValue = Vector2.new(64, 0);
+	CustomEventReceiver = Vector2.new(64, 0);
+	IntConstrainedValue = Vector2.new(64, 0);
+	Camera = Vector2.new(80, 0);
+	Script = Vector2.new(96, 0);
+	Decal = Vector2.new(112, 0);
+	CylinderMesh = Vector2.new(128, 0);
+	FileMesh = Vector2.new(128, 0);
+	SpecialMesh = Vector2.new(128, 0);
+	BlockMesh = Vector2.new(128, 0);
+	Humanoid = Vector2.new(144, 0);
+	Texture = Vector2.new(160, 0);
+	Sound = Vector2.new(176, 0);
+	Player = Vector2.new(192, 0);
+	SurfaceLight = Vector2.new(208, 0);
+	SpotLight = Vector2.new(208, 0);
+	PointLight = Vector2.new(208, 0);
+	Lighting = Vector2.new(208, 0);
+	BodyVelocity = Vector2.new(224, 0);
+	BodyThrust = Vector2.new(224, 0);
+	BodyForce = Vector2.new(224, 0);
+	BodyGyro = Vector2.new(224, 0);
+	RocketPropulsion = Vector2.new(224, 0);
+	BodyAngularVelocity = Vector2.new(224, 0);
+	BodyPosition = Vector2.new(224, 0);
+	NetworkServer = Vector2.new(240, 0);
+	NetworkClient = Vector2.new(256, 0);
+	Tool = Vector2.new(272, 0);
+	LocalScript = Vector2.new(288, 0);
+	CoreScript = Vector2.new(288, 0);
+	Workspace = Vector2.new(304, 0);
+	GamePassService = Vector2.new(304, 0);
+	StarterPack = Vector2.new(320, 0);
+	StarterGear = Vector2.new(320, 0);
+	Backpack = Vector2.new(320, 0);
+	Players = Vector2.new(336, 0);
+	HopperBin = Vector2.new(352, 0);
+	Teams = Vector2.new(368, 0);
+	Team = Vector2.new(384, 0);
+	SpawnLocation = Vector2.new(400, 0);
+	Sky = Vector2.new(448, 0);
+	NetworkReplicator = Vector2.new(464, 0);
+	CollectionService = Vector2.new(480, 0);
+	Debris = Vector2.new(480, 0);
+	SoundService = Vector2.new(496, 0);
+	Accessory = Vector2.new(512, 0);
+	Accoutrement = Vector2.new(512, 0);
+	Chat = Vector2.new(528, 0);
+	Message = Vector2.new(528, 0);
+	Hint = Vector2.new(528, 0);
+	Glue = Vector2.new(544, 0);
+	JointsService = Vector2.new(544, 0);
+	Motor = Vector2.new(544, 0);
+	Rotate = Vector2.new(544, 0);
+	Attachment = Vector2.new(544, 0);
+	Motor6D = Vector2.new(544, 0);
+	Snap = Vector2.new(544, 0);
+	RotateV = Vector2.new(544, 0);
+	RotateP = Vector2.new(544, 0);
+	VelocityMotor = Vector2.new(544, 0);
+	Weld = Vector2.new(544, 0);
+	JointInstance = Vector2.new(544, 0);
+	VehicleSeat = Vector2.new(560, 0);
+	Seat = Vector2.new(560, 0);
+	SkateboardPlatform = Vector2.new(560, 0);
+	Platform = Vector2.new(560, 0);
+	Explosion = Vector2.new(576, 0);
+	TouchTransmitter = Vector2.new(592, 0);
+	ForceField = Vector2.new(592, 0);
+	PathfindingService = Vector2.new(592, 0);
+	Flag = Vector2.new(608, 0);
+	FlagStand = Vector2.new(624, 0);
+	ShirtGraphic = Vector2.new(640, 0);
+	ContextActionService = Vector2.new(656, 0);
+	ClickDetector = Vector2.new(656, 0);
+	Sparkles = Vector2.new(672, 0);
+	Shirt = Vector2.new(688, 0);
+	Pants = Vector2.new(704, 0);
+	Hat = Vector2.new(720, 0);
+	StarterGui = Vector2.new(736, 0);
+	MarketplaceService = Vector2.new(736, 0);
+	CoreGui = Vector2.new(736, 0);
+	PlayerGui = Vector2.new(736, 0);
+	GuiService = Vector2.new(752, 0);
+	ScreenGui = Vector2.new(752, 0);
+	GuiMain = Vector2.new(752, 0);
+	Frame = Vector2.new(768, 0);
+	ScrollingFrame = Vector2.new(768, 0);
+	ImageLabel = Vector2.new(784, 0);
+	TextLabel = Vector2.new(800, 0);
+	TextBox = Vector2.new(816, 0);
+	TextButton = Vector2.new(816, 0);
+	GuiButton = Vector2.new(832, 0);
+	ImageButton = Vector2.new(832, 0);
+	Handles = Vector2.new(848, 0);
+	BoxHandleAdornment = Vector2.new(864, 0);
+	CylinderHandleAdornment = Vector2.new(864, 0);
+	SelectionBox = Vector2.new(864, 0);
+	SphereHandleAdornment = Vector2.new(864, 0);
+	ConeHandleAdornment = Vector2.new(864, 0);
+	LineHandleAdornment = Vector2.new(864, 0);
+	SelectionSphere = Vector2.new(864, 0);
+	Selection = Vector2.new(880, 0);
+	SurfaceSelection = Vector2.new(880, 0);
+	ArcHandles = Vector2.new(896, 0);
+	SelectionPartLasso = Vector2.new(912, 0);
+	PartPairLasso = Vector2.new(912, 0);
+	SelectionPointLasso = Vector2.new(912, 0);
+	Configuration = Vector2.new(928, 0);
+	Smoke = Vector2.new(944, 0);
+	Pose = Vector2.new(960, 0);
+	AnimationController = Vector2.new(960, 0);
+	CharacterMesh = Vector2.new(960, 0);
+	Keyframe = Vector2.new(960, 0);
+	AnimationTrack = Vector2.new(960, 0);
+	KeyframeSequence = Vector2.new(960, 0);
+	Animation = Vector2.new(960, 0);
+	Animator = Vector2.new(960, 0);
+	KeyframeSequenceProvider = Vector2.new(960, 0);
+	Fire = Vector2.new(976, 0);
+	Dialog = Vector2.new(992, 0);
+	DialogChoice = Vector2.new(1008, 0);
+	BillboardGui = Vector2.new(1024, 0);
+	SurfaceGui = Vector2.new(1024, 0);
+	TerrainRegion = Vector2.new(1040, 0);
+	Terrain = Vector2.new(1040, 0);
+	RunService = Vector2.new(1056, 0);
+	BindableFunction = Vector2.new(1056, 0);
+	BindableEvent = Vector2.new(1072, 0);
+	TestService = Vector2.new(1088, 0);
+	ParticleEmitter = Vector2.new(1280, 0);
+	Folder = Vector2.new(1232, 0);
+	ModuleScript = Vector2.new(1216, 0);
+	ReplicatedFirst = Vector2.new(1120, 0);
+	ReplicatedStorage = Vector2.new(1120, 0);
+	UnionOperation = Vector2.new(1168, 0);
+	NegateOperation = Vector2.new(1152, 0);
+	RemoteFunction = Vector2.new(1184, 0);
+	RemoteEvent = Vector2.new(1200, 0);
+	StarterPlayerScripts = Vector2.new(1248, 0);
+	StarterCharacterScripts = Vector2.new(1248, 0);
+	PlayerScripts = Vector2.new(1248, 0);
+	StarterPlayer = Vector2.new(1264, 0);
+}
+
 type ExplorerNodeLookup = {[Instance]: ExplorerNode} -- value references should be weak!
 
 type ExplorerUI = {
@@ -325,6 +498,7 @@ type ExplorerUIItem = {
 	padding: UIPadding,
 	instname: TextButton,
 	expandicon: ImageLabel,
+	classicon: ImageLabel,
 	node: ExplorerNode?,
 
 	update_name_event: RBXScriptConnection?
@@ -341,14 +515,14 @@ local function color_item(item: ExplorerUIItem)
 		item.instname.TextColor3 = item_deleted_textcolor
 		return
 	end
-	
+
 	if item.node and item.node.recently_added then
 		item.frame.BackgroundColor3 = item_added
 		item.frame.BorderColor3 = item_added_border
 		item.instname.TextColor3 = item_added_textcolor
 		return
 	end
-	
+
 	item.frame.BackgroundColor3 = background_color
 	item.frame.BorderColor3 = background_outline
 	item.instname.TextColor3 = background_textcolor
@@ -368,7 +542,7 @@ local function color_hovered_item(item: ExplorerUIItem)
 		item.instname.TextColor3 = item_added_textcolor
 		return
 	end
-	
+
 	item.frame.BackgroundColor3 = item_selected
 	item.frame.BorderColor3 = item_selected_border
 	item.instname.TextColor3 = item_selected_textcolor
@@ -415,6 +589,9 @@ local function update_explorer_ui(explorer: ExplorerUI)
 
 			-- update expand icon
 			item.expandicon.Rotation = cur_node.expanded and 90 or 0
+			
+			-- update icon
+			item.classicon.ImageRectOffset = icons_index[cur_node.instance.ClassName] or default_icon_index
 
 			-- update name
 			local inst = cur_node.instance
@@ -446,13 +623,14 @@ local function create_explorer_item(explorer: ExplorerUI)
 
 	local padding = add_padding(frame, 0, 0, 0, 0)
 	local expand_icon_width = 30
+	local class_icon_width = 16
 
 	local instname = Instance.new("TextButton")
 	instname.BorderSizePixel = 0
 	instname.BackgroundTransparency = 1
 	instname.AutoButtonColor = false
 	instname.Size = UDim2.new(1, -20, 1, 0) 
-	instname.Position = UDim2.fromOffset(expand_icon_width, 0)
+	instname.Position = UDim2.fromOffset(expand_icon_width + class_icon_width + 5, 0)
 	instname.TextXAlignment = Enum.TextXAlignment.Left
 	instname.Parent = frame
 
@@ -461,7 +639,7 @@ local function create_explorer_item(explorer: ExplorerUI)
 	expandframe.TextTransparency = 1
 	expandframe.Size = UDim2.new(0, expand_icon_width, 1, 0)
 	expandframe.Parent = frame
-	
+
 	local expandicon = Instance.new("ImageLabel")
 	expandicon.BackgroundTransparency = 1
 	expandicon.Size = UDim2.fromOffset(5, 7)
@@ -471,12 +649,22 @@ local function create_explorer_item(explorer: ExplorerUI)
 	expandicon.Position = UDim2.fromScale(0.5, 0.5)
 	expandicon.AnchorPoint = Vector2.new(0.5, 0.5)
 	expandicon.Parent = expandframe
+	
+	local classicon = Instance.new("ImageLabel")
+	classicon.BackgroundTransparency = 1
+	classicon.Size = UDim2.fromOffset(class_icon_width, 16)
+	classicon.Image = "rbxasset://textures/ClassImages.png"
+	classicon.ImageRectSize = Vector2.new(16, 16)
+	classicon.Position = UDim2.new(0, expand_icon_width, 0.5, 0)
+	classicon.AnchorPoint = Vector2.new(0, 0.5)
+	classicon.Parent = frame
 
 	local item: ExplorerUIItem = {
 		frame = frame,
 		instname = instname,
 		padding = padding,
-		expandicon = expandicon
+		expandicon = expandicon,
+		classicon = classicon
 	}
 
 	table.insert(connections,
@@ -600,7 +788,7 @@ table.insert(connections,
 			local node = new_child_node(instance, parent_node)
 			add_to_lookup(explorer.node_lookup, node)
 			node.recently_added = true
-			
+
 			-- if previous node is visible then it probably means this one will be too
 			-- this trick is explained in `update_explorer_ui`
 			local prev_node = node.back or node.parent
@@ -643,7 +831,7 @@ function _G.buslock_goto(instance: Instance)
 		if node then
 			return node 
 		end
-		
+
 		assert(instance.Parent, "Instance cannot be parented to nil!")
 		local parent_node = get_node_of(instance.Parent)
 		expand_node(parent_node, explorer)
