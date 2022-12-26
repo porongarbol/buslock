@@ -589,7 +589,7 @@ local function update_explorer_ui(explorer: ExplorerUI)
 
 			-- update expand icon
 			item.expandicon.Rotation = cur_node.expanded and 90 or 0
-			
+
 			-- update icon
 			item.classicon.ImageRectOffset = icons_index[cur_node.instance.ClassName] or default_icon_index
 
@@ -608,7 +608,7 @@ local function update_explorer_ui(explorer: ExplorerUI)
 	end
 end
 
-local function expand_node(node: ExplorerNode, explorer: UIExplorer)
+local function expand_node(node: ExplorerNode, explorer: ExplorerUI)
 	for _, child in ipairs(node.instance:GetChildren()) do
 		local child_node = new_child_node(child, node)
 		add_to_lookup(explorer.node_lookup, child_node)
@@ -649,7 +649,7 @@ local function create_explorer_item(explorer: ExplorerUI)
 	expandicon.Position = UDim2.fromScale(0.5, 0.5)
 	expandicon.AnchorPoint = Vector2.new(0.5, 0.5)
 	expandicon.Parent = expandframe
-	
+
 	local classicon = Instance.new("ImageLabel")
 	classicon.BackgroundTransparency = 1
 	classicon.Size = UDim2.fromOffset(class_icon_width, 16)
