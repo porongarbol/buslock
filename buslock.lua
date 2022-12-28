@@ -500,7 +500,11 @@ type ExplorerUIItem = {
 	expandicon: ImageLabel,
 	classicon: ImageLabel,
 	node: ExplorerNode?,
-
+	
+	update_to_node: (node: ExplorerNode) -> (),
+	show: () -> (),
+	hide: () -> (),
+	
 	update_name_event: RBXScriptConnection?
 }
 
@@ -554,56 +558,13 @@ local function update_explorer_ui(explorer: ExplorerUI)
 
 	local cur_node: ExplorerNode? = explorer.node
 	for _, item in ipairs(explorer.items) do
-		if item.update_name_event then
-			item.update_name_event:Disconnect()
-			item.update_name_event = nil
-			connections[item] = nil
-		end
-
 		if cur_node then
-			-- ok so this is complicated so I'll try to explain at the best of my ability
-
-			-- the reason this is important is
-			-- because buttons like 'expand' in the item
-			-- need information about the node
-			-- and this is the best way to give the node information to the item
-			item.node = cur_node
-
-			-- this is so I can check if a node is visible in the GUI
-			-- we will start with a general assumption
-			-- if cur_node.last_item_associated.node == item.node then node is visible
-			-- why?
-			-- let's say the first item stores a node
-			-- if we scroll down, the first item will of course store another node
-			-- however, the node that was in the first item, will still point to the first item
-			-- while that first item stores information about other node
-			cur_node.last_item_associated = item
-
-			item.frame.Visible = true
-
-			-- update colors
-			color_item(item)
-
-			-- update indentation
-			item.padding.PaddingLeft = UDim.new(0, cur_node.indentation * 10)
-
-			-- update expand icon
-			item.expandicon.Rotation = cur_node.expanded and 90 or 0
-
-			-- update icon
-			item.classicon.ImageRectOffset = icons_index[cur_node.instance.ClassName] or default_icon_index
-
-			-- update name
-			local inst = cur_node.instance
-			item.instname.Text = inst.Name
-			item.update_name_event = inst:GetPropertyChangedSignal("Name"):Connect(function()
-				item.instname.Text = inst.Name
-			end)
-			connections[item] = item.update_name_event
-
+			item.show()
+			item.update_to_node(cur_node)
+			
 			cur_node = get_next_node(cur_node)
 		else
-			item.frame.Visible = false
+			item.hide()
 		end
 	end
 end
@@ -616,7 +577,7 @@ local function expand_node(node: ExplorerNode, explorer: ExplorerUI)
 	node.expanded = true
 end
 
-local function create_explorer_item(explorer: ExplorerUI)
+local function create_explorer_item(explorer: ExplorerUI): ExplorerUIItem
 	local frame = Instance.new("Frame")
 	frame.Size = UDim2.new(1, 0, 0, 20)
 	frame.Parent = explorerframe
@@ -710,8 +671,49 @@ local function create_explorer_item(explorer: ExplorerUI)
 			end
 		end)
 	)
+	
+	function item.update_to_node(node: ExplorerNode)
+		-- update references
+		item.node = node
+		node.last_item_associated = item
 
-	table.insert(explorer.items, item)
+		-- update colors
+		color_item(item)
+
+		-- update indentation
+		item.padding.PaddingLeft = UDim.new(0, node.indentation * 10)
+
+		-- update expand icon
+		item.expandicon.Rotation = node.expanded and 90 or 0
+
+		-- update icon
+		item.classicon.ImageRectOffset = icons_index[node.instance.ClassName] or default_icon_index
+
+		-- update name
+		local inst = node.instance
+		item.instname.Text = inst.Name
+		
+		if item.update_name_event then
+			item.update_name_event:Disconnect()
+		end
+		
+		local connection = inst:GetPropertyChangedSignal("Name"):Connect(function()
+			item.instname.Text = inst.Name
+		end)
+		
+		item.update_name_event = connection
+		connections[item] = item.update_name_event
+	end
+	
+	function item.show()
+		item.frame.Visible = true
+	end
+	
+	function item.hide()
+		item.frame.Visible = false
+	end
+
+	return item
 end
 
 local lookup: ExplorerNodeLookup = {}
@@ -746,7 +748,8 @@ local explorer: ExplorerUI = {
 
 -- create explorer items
 for i = 1, explorer_size / 20 do
-	create_explorer_item(explorer)
+	local item = create_explorer_item(explorer)
+	table.insert(explorer.items, item)
 end
 
 -- update ui
@@ -772,9 +775,8 @@ table.insert(connections,
 			-- implies updating the screen
 			-- then do it
 			-- this checks if the node is visible in the screen
-			-- the trick is explained in `update_explorer_ui`
 			if node.last_item_associated and node.last_item_associated.node == node then
-				explorer.should_update_ui = true
+				node.last_item_associated.update_to_node(node)
 			end
 		end
 	end)
@@ -790,10 +792,9 @@ table.insert(connections,
 			node.recently_added = true
 
 			-- if previous node is visible then it probably means this one will be too
-			-- this trick is explained in `update_explorer_ui`
 			local prev_node = node.back or node.parent
 			if prev_node and prev_node.last_item_associated and prev_node.last_item_associated.node == prev_node then
-				explorer.should_update_ui = true
+				prev_node.last_item_associated.update_to_node(node)
 			end
 		end
 	end)
