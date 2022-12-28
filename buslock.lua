@@ -1,17 +1,6 @@
 --!strict
 
--- Buslock explorer
--- I made it quickly (in 2 hours), so I didn't put much effort into refactoring it
--- It's complicated yet at the same time basic
--- It's quick, but at the same time it doesn't update the gui when a new child is added or an instance is destroyed
-
--- FEATURES:
--- - expand and contract
--- - explorer names do update
--- - UI reflects removed items and added items
--- - able to drag the GUI
--- - proper disconnection of signals when the script is ran again or closed
--- - fast
+-- Buslock explorer https://github.com/porongarbol/buslock/
 
 if _G.buslock_quit then
 	_G.buslock_quit()
@@ -29,13 +18,10 @@ type ExplorerNode = {
 	removed: boolean, -- This will give the item a red color
 	recently_added: boolean, -- This will give the item a green color -- TODO: merge `recently_added` and `removed` into a single variable. because they just represent three states: normal node, removed node, and recently added node. so they should all be together with an enum or smt
 
-	-- reference to the nodes
+	-- reference to other nodes
 	-- this will allow us to do many kind of operations quickly
 	-- at the cost of a complicated implementation
-	child: ExplorerNode?,	-- sidenote: if child is nil, then it means that
-	-- this node wasn't expanded (via UI)
-	-- so, if nil: node isn't expanded
-	-- if not nil: node is expanded and should render childs
+	child: ExplorerNode?,
 	last_child: ExplorerNode?,
 	next: ExplorerNode?,
 	back: ExplorerNode?,
@@ -112,6 +98,10 @@ local function get_prev_node(node: ExplorerNode): ExplorerNode?
 	end
 
 	return nil
+end
+
+local function is_node_visible(node: ExplorerNode): boolean
+	return node.last_item_associated and node.last_item_associated.node == node or false
 end
 
 -- gui
@@ -770,12 +760,8 @@ table.insert(connections,
 		then
 			node.removed = true
 			node.recently_added = false
-
-			-- if changing .removed = true
-			-- implies updating the screen
-			-- then do it
-			-- this checks if the node is visible in the screen
-			if node.last_item_associated and node.last_item_associated.node == node then
+			
+			if is_node_visible(node) then
 				node.last_item_associated.update_to_node(node)
 			end
 		end
@@ -793,7 +779,7 @@ table.insert(connections,
 
 			-- if previous node is visible then it probably means this one will be too
 			local prev_node = node.back or node.parent
-			if prev_node and prev_node.last_item_associated and prev_node.last_item_associated.node == prev_node then
+			if prev_node and is_node_visible(prev_node) then
 				prev_node.last_item_associated.update_to_node(node)
 			end
 		end
