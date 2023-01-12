@@ -158,62 +158,65 @@ local item_added_selected = Color3.fromRGB(55, 229, 29)
 local item_added_border = Color3.fromRGB(47, 184, 22)
 local item_added_textcolor = Color3.fromRGB(255, 255, 255)
 
-local topbar_size = 30
-local explorer_size = 400
-local ui_width = 300
+type Window = {
+	contents: Frame,
+	title: TextLabel
+}
 
-local background = Instance.new("Frame")
-background.Position = UDim2.fromOffset(10, 10)
-background.Size = UDim2.fromOffset(ui_width, explorer_size + topbar_size)
-background.ClipsDescendants = true
-background.BackgroundColor3 = background_color
-background.Parent = gui
+local function new_window(width: number, height: number): Window
+	local topbar_size = 30
+	
+	local background = Instance.new("Frame")
+	background.Position = UDim2.fromOffset(10, 10)
+	background.Size = UDim2.fromOffset(width, topbar_size + height)
+	background.ClipsDescendants = true
+	background.BackgroundColor3 = background_color
+	background.Parent = gui
 
-do
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = topbar_color
-	stroke.Parent = background
+	do
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = topbar_color
+		stroke.Parent = background
 
-	local list = Instance.new("UIListLayout")
-	list.SortOrder = Enum.SortOrder.LayoutOrder
-	list.Parent = background
-end
+		local list = Instance.new("UIListLayout")
+		list.SortOrder = Enum.SortOrder.LayoutOrder
+		list.Parent = background
+	end
 
-local topbar = Instance.new("Frame")
-topbar.Size = UDim2.new(1, 0, 0, topbar_size)
-topbar.BackgroundColor3 = topbar_color
-topbar.Parent = background
+	local topbar = Instance.new("Frame")
+	topbar.Size = UDim2.new(1, 0, 0, topbar_size)
+	topbar.BackgroundColor3 = topbar_color
+	topbar.Parent = background
 
-local topbartitle = Instance.new("TextLabel")
-topbartitle.TextXAlignment = Enum.TextXAlignment.Left
-topbartitle.Font = Enum.Font.Ubuntu
-topbartitle.BackgroundTransparency = 1
-topbartitle.Size = UDim2.fromScale(0.5, 1)
-topbartitle.TextSize = 14
-topbartitle.TextColor3 = topbartext_color
-add_padding(topbartitle, 10, 0, 0, 0)
-topbartitle.Parent = topbar
+	local topbartitle = Instance.new("TextLabel")
+	topbartitle.TextXAlignment = Enum.TextXAlignment.Left
+	topbartitle.Font = Enum.Font.Ubuntu
+	topbartitle.BackgroundTransparency = 1
+	topbartitle.Size = UDim2.fromScale(0.5, 1)
+	topbartitle.TextSize = 14
+	topbartitle.TextColor3 = topbartext_color
+	add_padding(topbartitle, 10, 0, 0, 0)
+	topbartitle.Parent = topbar
 
-local topbar_button_width = 20
-local ui_expanded = true
-local hidebutton: ImageButton;
-local closebutton: ImageButton;
+	local topbar_button_width = 20
+	local ui_expanded = true
+	local hidebutton: ImageButton;
+	local closebutton: ImageButton;
 
-do
-	local padding = 5
+	local icons_padding = 5
 
 	closebutton = Instance.new("ImageButton")
-	closebutton.Size = UDim2.new(0, topbar_button_width, 1, -padding * 2)
+	closebutton.Size = UDim2.new(0, topbar_button_width, 1, -icons_padding * 2)
 	closebutton.AnchorPoint = Vector2.new(1, 0.5)
-	closebutton.Position = UDim2.new(1, -padding, 0.5, 0)
+	closebutton.Position = UDim2.new(1, -icons_padding, 0.5, 0)
 	closebutton.Image = "http://www.roblox.com/asset/?id=10830675223"
 	closebutton.BackgroundTransparency = 1
 	closebutton.Parent = topbar
 
 	hidebutton = Instance.new("ImageButton")
-	hidebutton.Size = UDim2.new(0, topbar_button_width, 1, -padding * 2)
+	hidebutton.Size = UDim2.new(0, topbar_button_width, 1, -icons_padding * 2)
 	hidebutton.AnchorPoint = Vector2.new(1, 0.5)
-	hidebutton.Position = UDim2.new(1, -padding -topbar_button_width -padding, 0.5, 0)
+	hidebutton.Position = UDim2.new(1, -icons_padding -topbar_button_width -icons_padding, 0.5, 0)
 	hidebutton.Image = "http://www.roblox.com/asset/?id=6972508944"
 	hidebutton.BackgroundTransparency = 1
 	hidebutton.Parent = topbar
@@ -222,9 +225,9 @@ do
 		hidebutton.Activated:Connect(function()
 			ui_expanded = not ui_expanded
 			if ui_expanded then
-				background.Size = UDim2.fromOffset(ui_width, topbar_size + explorer_size)
+				background.Size = UDim2.fromOffset(width, topbar_size + height)
 			else
-				background.Size = UDim2.fromOffset(ui_width, topbar_size)
+				background.Size = UDim2.fromOffset(width, topbar_size)
 			end
 		end)
 	)
@@ -232,22 +235,8 @@ do
 	table.insert(connections,
 		closebutton.Activated:Connect(_G.buslock_quit)
 	)
-end
 
-local explorerframe = Instance.new("Frame")
-explorerframe.Size = UDim2.new(1, 0, 0, explorer_size)
-explorerframe.Position = UDim2.fromOffset(0, topbar_size)
-explorerframe.BackgroundTransparency = 1
-explorerframe.Parent = topbar
-
-do
-	local list = Instance.new("UIListLayout")
-	list.SortOrder = Enum.SortOrder.LayoutOrder
-	list.Parent = explorerframe
-end
-
--- dragging
-do
+	-- dragging
 	local dragging = false
 	local mouse = lp:GetMouse()
 
@@ -277,9 +266,33 @@ do
 			dragging = false
 		end)
 	)
+	
+	local contents = Instance.new("Frame")
+	contents.Size = UDim2.new(1, 0, 0, height)
+	contents.Position = UDim2.fromOffset(0, topbar_size)
+	contents.BackgroundTransparency = 1
+	contents.Parent = topbar
+	
+	return {
+		contents = contents,
+		title = topbartitle
+	}
+end
+
+local function change_window_title(window: Window, title: string)
+	window.title.Text = title
 end
 
 -- explorer gui
+local explorer_height = 400
+local explorer_width = 300
+local explorer_window = new_window(explorer_width, explorer_height)
+
+do
+	local list = Instance.new("UIListLayout")
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Parent = explorer_window.contents
+end
 
 -- TODO: finish this
 local default_icon_index = Vector2.new(0, 0)
@@ -525,7 +538,9 @@ end
 
 local function update_explorer_ui(explorer: ExplorerUI)
 	local node = explorer.node
-	topbartitle.Text = node.parent and node.parent.instance.Name or node.instance.Name
+	
+	local title = node.parent and node.parent.instance.Name or node.instance.Name
+	change_window_title(explorer_window, title)
 
 	local cur_node: ExplorerNode? = explorer.node
 	for _, item in ipairs(explorer.items) do
@@ -551,7 +566,7 @@ end
 local function create_explorer_item(explorer: ExplorerUI): ExplorerUIItem
 	local frame = Instance.new("Frame")
 	frame.Size = UDim2.new(1, 0, 0, 20)
-	frame.Parent = explorerframe
+	frame.Parent = explorer_window.contents
 
 	local padding = add_padding(frame, 0, 0, 0, 0)
 	local expand_icon_width = 30
@@ -718,7 +733,7 @@ local explorer: ExplorerUI = {
 }
 
 -- create explorer items
-for i = 1, explorer_size / 20 do
+for i = 1, explorer_height / 20 do
 	local item = create_explorer_item(explorer)
 	table.insert(explorer.items, item)
 end
@@ -769,7 +784,7 @@ table.insert(connections,
 
 -- scrolling functionality
 table.insert(connections,
-	explorerframe.MouseWheelForward:Connect(function()
+	explorer_window.contents.MouseWheelForward:Connect(function()
 		local back = get_prev_node(explorer.node)
 		if back then
 			explorer.node = back
@@ -779,7 +794,7 @@ table.insert(connections,
 )
 
 table.insert(connections,
-	explorerframe.MouseWheelBackward:Connect(function()
+	explorer_window.contents.MouseWheelBackward:Connect(function()
 		local next = get_next_node(explorer.node)
 		if next then
 			explorer.node = next
