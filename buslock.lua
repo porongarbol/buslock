@@ -128,14 +128,6 @@ function _G.buslock_quit()
 	end
 end
 
-local function round_corners(instance: Instance): UICorner
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
-	corner.Parent = instance
-
-	return corner
-end
-
 local function add_padding(instance: Instance, left: number, top: number, right: number, bottom: number): UIPadding
 	local padding = Instance.new("UIPadding")
 	padding.PaddingLeft = UDim.new(0, left)
@@ -175,7 +167,6 @@ background.Position = UDim2.fromOffset(10, 10)
 background.Size = UDim2.fromOffset(ui_width, explorer_size + topbar_size)
 background.ClipsDescendants = true
 background.BackgroundColor3 = background_color
-round_corners(background)
 background.Parent = gui
 
 do
@@ -191,15 +182,7 @@ end
 local topbar = Instance.new("Frame")
 topbar.Size = UDim2.new(1, 0, 0, topbar_size)
 topbar.BackgroundColor3 = topbar_color
-round_corners(topbar)
 topbar.Parent = background
-
-local topbar_square_corners = Instance.new("Frame")
-topbar_square_corners.Size = UDim2.fromScale(1, 0.5)
-topbar_square_corners.Position = UDim2.fromScale(0, 0.5)
-topbar_square_corners.BorderSizePixel = 0
-topbar_square_corners.BackgroundColor3 = topbar_color
-topbar_square_corners.Parent = topbar
 
 local topbartitle = Instance.new("TextLabel")
 topbartitle.TextXAlignment = Enum.TextXAlignment.Left
@@ -240,10 +223,8 @@ do
 			ui_expanded = not ui_expanded
 			if ui_expanded then
 				background.Size = UDim2.fromOffset(ui_width, topbar_size + explorer_size)
-				topbar_square_corners.Visible = true
 			else
 				background.Size = UDim2.fromOffset(ui_width, topbar_size)
-				topbar_square_corners.Visible = false
 			end
 		end)
 	)
@@ -490,11 +471,11 @@ type ExplorerUIItem = {
 	expandicon: ImageLabel,
 	classicon: ImageLabel,
 	node: ExplorerNode?,
-	
+
 	update_to_node: (node: ExplorerNode) -> (),
 	show: () -> (),
 	hide: () -> (),
-	
+
 	update_name_event: RBXScriptConnection?
 }
 
@@ -551,7 +532,7 @@ local function update_explorer_ui(explorer: ExplorerUI)
 		if cur_node then
 			item.show()
 			item.update_to_node(cur_node)
-			
+
 			cur_node = get_next_node(cur_node)
 		else
 			item.hide()
@@ -661,7 +642,7 @@ local function create_explorer_item(explorer: ExplorerUI): ExplorerUIItem
 			end
 		end)
 	)
-	
+
 	function item.update_to_node(node: ExplorerNode)
 		-- update references
 		item.node = node
@@ -682,23 +663,23 @@ local function create_explorer_item(explorer: ExplorerUI): ExplorerUIItem
 		-- update name
 		local inst = node.instance
 		item.instname.Text = inst.Name
-		
+
 		if item.update_name_event then
 			item.update_name_event:Disconnect()
 		end
-		
+
 		local connection = inst:GetPropertyChangedSignal("Name"):Connect(function()
 			item.instname.Text = inst.Name
 		end)
-		
+
 		item.update_name_event = connection
 		connections[item] = item.update_name_event
 	end
-	
+
 	function item.show()
 		item.frame.Visible = true
 	end
-	
+
 	function item.hide()
 		item.frame.Visible = false
 	end
@@ -760,7 +741,7 @@ table.insert(connections,
 		then
 			node.removed = true
 			node.recently_added = false
-			
+
 			if is_node_visible(node) then
 				node.last_item_associated.update_to_node(node)
 			end
