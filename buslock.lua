@@ -776,7 +776,7 @@ table.insert(connections,
 			-- if previous node is visible then it probably means this one will be too
 			local prev_node = node.back or node.parent
 			if prev_node and is_node_visible(prev_node) then
-				prev_node.last_item_associated.update_to_node(node)
+				explorer.should_update_ui = true
 			end
 		end
 	end)
